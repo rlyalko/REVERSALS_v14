@@ -1,0 +1,777 @@
+ #region CALENDAR FROM AND TO DATABASE
+
+        private void CreateCalendarItems()
+        {
+            _calendarResult.Clear();
+            NumberFormatInfo Nfi = new CultureInfo("en-US", false).NumberFormat;
+
+            for (int i = 0; i < MonthProfit.Length; i++) MonthProfit[i] = 0;
+
+            uiCalendar_calendarViewResultView.SelectedView = eCalendarView.Month;
+            uiCalendar_calendarViewResultView.TimeLineShowPeriodHeader = true;
+            var result1 = from item in _weekData.DayDataTable.AsEnumerable() select item;
+            int count = result1.ToArray().Length;
+            uiCalendar_calendarViewResultView.TimeLineShowPageNavigation = true;
+            string dottedDateTimeFormat = "dd.MM.yyyy HH:mm:ss";
+            string[] formats = new string[] {_dateTimeFormat, dottedDateTimeFormat};
+
+            DateTime datetimetemp = DateTime.ParseExact(result1.ToArray().ElementAt(0).Date,
+                                                        DateFormatsManager.CurrentShortDateFormat + " HH:mm:ss",
+                                                        CultureInfo.InvariantCulture, DateTimeStyles.None);
+            DateTime dateTimeStart = new DateTime(datetimetemp.Year, datetimetemp.Month, datetimetemp.Day);
+            _startCalendarTime = dateTimeStart;
+
+            datetimetemp = DateTime.ParseExact(result1.ToArray().ElementAt(count - 1).Date,
+                                               DateFormatsManager.CurrentShortDateFormat + " HH:mm:ss",
+                                               CultureInfo.InvariantCulture, DateTimeStyles.None);
+            DateTime dateTimeEnd = new DateTime(datetimetemp.Year, datetimetemp.Month, datetimetemp.Day);
+            _endCalendarTime = dateTimeEnd;
+
+            uiCalendar_calendarViewResultView.MonthViewStartDate = new DateTime(dateTimeStart.Year, dateTimeStart.Month,
+                                                                                1);
+            uiCalendar_calendarViewResultView.MonthViewEndDate = new DateTime(dateTimeStart.Year,
+                                                                              dateTimeStart.Month + 1, 1);
+
+            foreach (WeeklyData.tableDaysRow dataRow in result1.ToArray())
+            {
+
+                datetimetemp = DateTime.ParseExact(dataRow.Date, DateFormatsManager.CurrentShortDateFormat + " HH:mm:ss",
+                                                   CultureInfo.InvariantCulture, DateTimeStyles.None);
+                dateTimeStart = new DateTime(datetimetemp.Year, datetimetemp.Month, datetimetemp.Day);
+                if (dateTimeStart.DayOfWeek != DayOfWeek.Sunday && dateTimeStart.DayOfWeek != DayOfWeek.Saturday)
+                {
+                    Appointment appointment = new Appointment();
+                    appointment.StartTime = dateTimeStart;
+
+                    datetimetemp =
+                        DateTime.ParseExact(dataRow.Date, DateFormatsManager.CurrentShortDateFormat + " HH:mm:ss",
+                                            CultureInfo.InvariantCulture, DateTimeStyles.None).AddMinutes(1);
+                    dateTimeEnd = new DateTime(datetimetemp.Year, datetimetemp.Month, datetimetemp.Day);
+
+                    CalcMonthProfit(dateTimeStart, dataRow.PNL);
+                    appointment.EndTime = appointment.StartTime.AddDays(1);
+
+
+                    if (double.Parse(dataRow.PNL.ToString()) > 0)
+                        appointment.CategoryColor = Appointment.CategoryGreen;
+                    else
+                        appointment.CategoryColor = Appointment.CategoryRed;
+
+                    appointment.Locked = true;
+                    appointment.Subject = Math.Round(dataRow.PNL, 2).ToString();
+                    appointment.TimeMarkedAs = Appointment.TimerMarkerDefault;
+
+                    ResultModel item = new ResultModel();
+                    item.Date = appointment.StartTime;
+                    item.Pnl = Math.Round(dataRow.PNL, 2);
+                    _calendarResult.Add(item);
+
+                    MethodInvoker action = delegate
+                                               {
+
+                                                   uiCalendar_calendarViewResultView.CalendarModel.Appointments.Add(
+                                                       appointment);
+                                               };
+                    uiCalendar_calendarViewResultView.Invoke(action);
+
+
+                    int month = uiCalendar_calendarViewResultView.MonthViewStartDate.Month;
+
+                    Invoke((Action) delegate
+                                        {
+
+                                            GetCalendarWeeksValue(month);
+                                        });
+
+                }
+            }
+        }
+
+        private void CalcMonthProfit(DateTime date, double pnl)
+        {
+            switch (date.Month)
+            {
+                case 1:
+                    MonthProfit[0] += pnl;
+                    break;
+                case 2:
+                    MonthProfit[1] += pnl;
+                    break;
+                case 3:
+                    MonthProfit[2] += pnl;
+                    break;
+                case 4:
+                    MonthProfit[3] += pnl;
+                    break;
+                case 5:
+                    MonthProfit[4] += pnl;
+                    break;
+                case 6:
+                    MonthProfit[5] += pnl;
+                    break;
+                case 7:
+                    MonthProfit[6] += pnl;
+                    break;
+                case 8:
+                    MonthProfit[7] += pnl;
+                    break;
+                case 9:
+                    MonthProfit[8] += pnl;
+                    break;
+                case 10:
+                    MonthProfit[9] += pnl;
+                    break;
+                case 11:
+                    MonthProfit[10] += pnl;
+                    break;
+                case 12:
+                    MonthProfit[11] += pnl;
+                    break;
+
+            }
+        }
+
+        private void GetCalendarWeeksValue(int monthIndex)
+        {
+
+            NumberFormatInfo Nfi = new CultureInfo("en-US", false).NumberFormat;
+            DateTimeFormatInfo cultureDateTimeFormat = CultureInfo.CurrentCulture.DateTimeFormat;
+            DateTime datevithdots = new DateTime();
+            string dateTimeFormat = cultureDateTimeFormat.ShortDatePattern + " " +
+                                    cultureDateTimeFormat.LongTimePattern;
+            string dottedFormat = "dd.MM.yyyy HH:mm:ss";
+            string slashFormat = "dd/MM/yyyy HH:mm:ss";
+            string usingFormat;
+
+            var dateStr = _weekData.WeekDataTable.AsEnumerable().ElementAt(0).Start_Date;
+
+
+
+            var result1 = from item in _weekData.WeekDataTable.AsEnumerable()
+                          where
+                              DateTime.ParseExact(item.Start_Date,
+                                                  DateFormatsManager.CurrentShortDateFormat + " HH:mm:ss",
+                                                  CultureInfo.InvariantCulture).Month == monthIndex
+                          select item;
+
+            double monthly = 0;
+            DateTimeFormatInfo mfi = new DateTimeFormatInfo();
+
+            string strMonthName = mfi.GetMonthName(monthIndex).ToString();
+
+            monthly = MonthProfit[monthIndex - 1];
+            uiMonthlyCaption.Text = "Monthly Total for " + strMonthName + ":";
+            uiCalendar_labelXMonthTotal.Text = monthly.ToString("n", Nfi);
+            if (uiCalendar_labelXMonthTotal.Text.IndexOf('-') > -1)
+                uiCalendar_labelXMonthTotal.ForeColor = Color.Crimson;
+            else
+                uiCalendar_labelXMonthTotal.ForeColor = Color.Green;
+
+            uiCalendar_labelXMonth.Text = strMonthName;
+            uiCalendar_labelXWeek1.Text =
+                uiCalendar_labelXWeek2.Text =
+                uiCalendar_labelXWeek3.Text = uiCalendar_labelXWeek4.Text = uiCalendar_labelXWeek5.Text = "";
+
+            bool isSixWeek;
+            var tempWeek = DateTime.ParseExact(result1.ToArray()[0].Start_Date,
+                                               DateFormatsManager.CurrentShortDateFormat + " HH:mm:ss",
+                                               CultureInfo.InvariantCulture);
+            var sixWeek = new DateTime(tempWeek.Year, tempWeek.Month, 1);
+
+            if (sixWeek.DayOfWeek == DayOfWeek.Saturday)
+                isSixWeek = true;
+            else if (sixWeek.DayOfWeek == DayOfWeek.Friday && DateTime.DaysInMonth(sixWeek.Year, sixWeek.Month) == 31)
+                isSixWeek = true;
+            else isSixWeek = false;
+
+            if (isSixWeek)
+            {
+                var sixthW = from item in _weekData.WeekDataTable.AsEnumerable()
+                             where
+                                 DateTime.ParseExact(item.Start_Date,
+                                                     DateFormatsManager.CurrentShortDateFormat + " HH:mm:ss",
+                                                     CultureInfo.InvariantCulture).Month == monthIndex + 1
+                             select item;
+                if (sixthW.ToArray().Length != 0)
+                {
+                    uiCalendar_labelXWeek6.Text = sixthW.ToArray()[0].PNL.ToString("n", Nfi);
+
+                    if (sixthW.ToArray()[0].PNL < 0)
+                        uiCalendar_labelXWeek6.ForeColor = Color.Crimson;
+                    else
+
+                        uiCalendar_labelXWeek6.ForeColor = Color.Green;
+                }
+            }
+            else uiCalendar_labelXWeek6.Text = "";
+
+
+
+            for (int i = 0; i < result1.ToArray().Count(); i++)
+            {
+                WeeklyData.tableWeekRow wRow = result1.ToArray()[i];
+                var dtt = DateTime.ParseExact(wRow.Start_Date, DateFormatsManager.CurrentShortDateFormat + " HH:mm:ss",
+                                              CultureInfo.InvariantCulture);
+                int weeknumber = GetWeekOfMonth(new DateTime(dtt.Year, dtt.Month, dtt.Day));
+
+
+
+                switch (weeknumber)
+                {
+                    case 1:
+
+                        uiCalendar_labelXWeek1.Text = wRow.PNL.ToString("n", Nfi);
+                        if (uiCalendar_labelXWeek1.Text.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek1.ForeColor = Color.Crimson;
+                        else
+
+                            uiCalendar_labelXWeek1.ForeColor = Color.Green;
+
+                        break;
+
+                    case 2:
+
+                        uiCalendar_labelXWeek2.Text = wRow.PNL.ToString("n", Nfi);
+                        if (uiCalendar_labelXWeek2.Text.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek2.ForeColor = Color.Crimson;
+                        else
+                            uiCalendar_labelXWeek2.Text = wRow.PNL.ToString("n", Nfi);
+                        uiCalendar_labelXWeek2.ForeColor = Color.Green;
+                        break;
+                    case 3:
+                        uiCalendar_labelXWeek3.Text = wRow.PNL.ToString("n", Nfi);
+                        if (uiCalendar_labelXWeek3.Text.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek3.ForeColor = Color.Crimson;
+                        else
+                            uiCalendar_labelXWeek3.ForeColor = Color.Green;
+                        break;
+                    case 4:
+                        uiCalendar_labelXWeek4.Text = wRow.PNL.ToString("n", Nfi);
+                        if (uiCalendar_labelXWeek4.Text.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek4.ForeColor = Color.Crimson;
+                        else
+                            uiCalendar_labelXWeek4.ForeColor = Color.Green;
+                        break;
+                    case 5:
+                        uiCalendar_labelXWeek5.Text = wRow.PNL.ToString("n", Nfi);
+                        if (dtt.Month == uiCalendar_calendarViewResultView.MonthViewStartDate.Month)
+                            monthly += wRow.PNL;
+                        if (uiCalendar_labelXWeek5.Text.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek5.ForeColor = Color.Crimson;
+                        else
+                            uiCalendar_labelXWeek5.ForeColor = Color.Green;
+                        break;
+
+
+
+                }
+
+                SetCalendarWeeksCount(!isSixWeek);
+
+            }
+
+
+
+
+        }
+
+
+        private void uiCalendarSymbol_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            _dataSets = DataManager.GetDatasets();
+            int symbolId = _contracts.Find(a => a.ContractName == uiCalendar_comboBoxXSymbol.Text).CountractId;
+            uiCalendar_comboBoxXDSet.Items.Clear();
+            uiCalendar_comboBoxXDSet.Text = "";
+
+            foreach (DataSetSimpleModel dataSet in _dataSets.Where(a => a.SymbolId == symbolId))
+            {
+                uiCalendar_comboBoxXDSet.Items.Add(dataSet.DataSetName);
+            }
+        }
+
+        private void uiCalendarDSet_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (uiCalendar_comboBoxXDSet.SelectedIndex != -1)
+            {
+                uiCalendar_buttonXLoad.Enabled = true;
+                uiCalendar_buttonXDelete.Enabled = true;
+            }
+        }
+
+        private void SetCalendarSymbol()
+        {
+            if (_symbolList == null)
+                _symbolList = DataManager.GetContracts();
+
+            foreach (var item in _symbolList)
+                uiCalendar_comboBoxXSymbol.Items.Add(item.ContractName);
+        }
+
+        private void SetCalendarDataSet()
+        {
+            if (_datasetList == null)
+                _datasetList = DataManager.GetDatasets();
+
+            foreach (var item in _datasetList)
+                uiCalendar_comboBoxXDSet.Items.Add(item.DataSetName);
+        }
+
+        private void LoadCalendarWeeksValue(int monthIndex)
+        {
+
+            NumberFormatInfo Nfi = new CultureInfo("en-US", false).NumberFormat;
+            DateTimeFormatInfo cultureDateTimeFormat = CultureInfo.CurrentCulture.DateTimeFormat;
+            DateTime datevithdots = new DateTime();
+            string dateTimeFormat = cultureDateTimeFormat.ShortDatePattern + " " +
+                                    cultureDateTimeFormat.LongTimePattern;
+            string dottedFormat = "dd.MM.yyyy HH:mm:ss";
+            string slashFormat = "dd/MM/yyyy HH:mm:ss";
+            string usingFormat;
+
+            var dateStr = _calendarResult.ElementAt(0).Date;
+
+
+
+            double monthly = 0;
+            DateTimeFormatInfo mfi = new DateTimeFormatInfo();
+
+            string strMonthName = mfi.GetMonthName(monthIndex).ToString();
+
+            monthly = MonthProfit[monthIndex - 1];
+
+            uiMonthlyCaption.Text = "Monthly Total for " + strMonthName + ":";
+
+            uiCalendar_labelXMonthTotal.Text = monthly.ToString("n", Nfi);
+
+            if (uiCalendar_labelXMonthTotal.Text.IndexOf('-') > -1)
+                uiCalendar_labelXMonthTotal.ForeColor = Color.Crimson;
+            else
+                uiCalendar_labelXMonthTotal.ForeColor = Color.Green;
+
+            uiCalendar_labelXMonth.Text = strMonthName;
+            uiCalendar_labelXWeek1.Text =
+                uiCalendar_labelXWeek2.Text =
+                uiCalendar_labelXWeek3.Text = uiCalendar_labelXWeek4.Text = uiCalendar_labelXWeek5.Text = "";
+
+            //foreach (WeeklyData.tableWeekRow wRow in result1.ToArray())
+            //{
+            int dayCounter = 0;
+            int weekCounter = 0;
+
+            _weeklist.Clear();
+
+            DateTime[] weekTimes = new DateTime[_calendarResult.Count];
+            double[] pnlarray = new double[_calendarResult.Count];
+
+            foreach (var calitem in _calendarResult)
+            {
+                if (dayCounter == 0)
+                {
+                    weekTimes[weekCounter] = calitem.Date;
+                    dayCounter++;
+                }
+                if (calitem.Date.DayOfWeek == DayOfWeek.Monday)
+                {
+                    weekCounter++;
+                    weekTimes[weekCounter] = calitem.Date;
+
+                }
+
+                pnlarray[weekCounter] += calitem.Pnl;
+            }
+
+            int cc = 0;
+
+            while (cc <= weekCounter)
+            {
+                ResultModel rm = new ResultModel();
+                rm.Date = weekTimes[cc];
+                rm.Pnl = pnlarray[cc];
+                _weeklist.Add(rm);
+                cc++;
+
+            }
+
+            var result1 = from item in _weeklist.AsEnumerable()
+                          where
+                              item.Date.Month == monthIndex
+                          select item;
+
+
+
+            for (int i = 0; i < result1.ToArray().Length; i++)
+            {
+                var item = result1.ElementAt(i);
+                var dtt = item.Date;
+                int weeknumber = GetWeekOfMonth(dtt);
+                switch (weeknumber)
+                {
+                    case 1:
+                        uiCalendar_labelXWeek1.Text = item.Pnl.ToString("n", Nfi);
+                        if (uiCalendar_labelXWeek1.Text.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek1.ForeColor = Color.Crimson;
+                        else
+
+                            uiCalendar_labelXWeek1.ForeColor = Color.Green;
+                        break;
+
+                    case 2:
+
+                        uiCalendar_labelXWeek2.Text = item.Pnl.ToString("n", Nfi);
+                        if (uiCalendar_labelXWeek2.Text.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek2.ForeColor = Color.Crimson;
+                        else
+                            uiCalendar_labelXWeek2.Text = item.Pnl.ToString("n", Nfi);
+                        uiCalendar_labelXWeek2.ForeColor = Color.Green;
+                        break;
+                    case 3:
+                        uiCalendar_labelXWeek3.Text = item.Pnl.ToString("n", Nfi);
+                        if (uiCalendar_labelXWeek3.Text.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek3.ForeColor = Color.Crimson;
+                        else
+                            uiCalendar_labelXWeek3.ForeColor = Color.Green;
+                        break;
+                    case 4:
+                        uiCalendar_labelXWeek4.Text = item.Pnl.ToString("n", Nfi);
+                        if (uiCalendar_labelXWeek4.Text.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek4.ForeColor = Color.Crimson;
+                        else
+                            uiCalendar_labelXWeek4.ForeColor = Color.Green;
+                        break;
+                    case 5:
+                        uiCalendar_labelXWeek5.Text = item.Pnl.ToString("n", Nfi);
+                        if (dtt.Month == uiCalendar_calendarViewResultView.MonthViewStartDate.Month)
+                            monthly += item.Pnl;
+                        if (uiCalendar_labelXWeek5.Text.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek5.ForeColor = Color.Crimson;
+                        else
+                            uiCalendar_labelXWeek5.ForeColor = Color.Green;
+                        break;
+
+                }
+
+
+            }
+
+
+
+        }
+
+        private void SaveCalendarItem()
+        {
+            int symbolID = 0;
+            int dataSetId = 0;
+            _symbolList = DataManager.GetContracts();
+            foreach (var item in _symbolList)
+            {
+                if (item.ContractName == uiCalendar_comboBoxXSymbol.Text)
+                    symbolID = item.CountractId;
+            }
+
+
+            _datasetList = DataManager.GetDatasets();
+            foreach (var item in _datasetList)
+            {
+                if (item.DataSetName == uiCalendar_comboBoxXDSet.Text)
+                    dataSetId = item.Id;
+            }
+
+            if (_calendarResult != null)
+            {
+                DataManager.AddResult(symbolID, dataSetId, _calendarResult);
+                ToastNotification.Show(this, "Calendar Saved.");
+            }
+        }
+
+        private void LoadCalendarItems(int symbolID, int DataSetId)
+        {
+            //todo:loadcalendar
+            isLoaded = true;
+            var list = DataManager.GetResult(symbolID, DataSetId);
+
+            if (list.Count != 0)
+            {
+                NumberFormatInfo Nfi = new CultureInfo("en-US", false).NumberFormat;
+
+                for (int i = 0; i < MonthProfit.Length; i++) MonthProfit[i] = 0;
+                uiCalendar_calendarViewResultView.CalendarModel.Appointments.Clear();
+                _calendarResult.Clear();
+                uiCalendar_calendarViewResultView.SelectedView = eCalendarView.Month;
+                uiCalendar_calendarViewResultView.TimeLineShowPeriodHeader = true;
+
+
+                int count = list.Count;
+                uiCalendar_calendarViewResultView.TimeLineShowPageNavigation = true;
+                string dottedDateTimeFormat = "dd.MM.yyyy HH:mm:ss";
+                string[] formats = new string[] {_dateTimeFormat, dottedDateTimeFormat};
+
+                _startCalendarTime = list.ElementAt(0).Date;
+                _endCalendarTime = list.ElementAt(count - 1).Date;
+                DateTime dateTimeStart = _startCalendarTime;
+
+                uiCalendar_calendarViewResultView.MonthViewStartDate = new DateTime(dateTimeStart.Year,
+                                                                                    dateTimeStart.Month, 1);
+                uiCalendar_calendarViewResultView.MonthViewEndDate = new DateTime(dateTimeStart.Year,
+                                                                                  dateTimeStart.Month + 1, 1);
+
+                foreach (var calendaritem in list)
+                {
+
+                    dateTimeStart = new DateTime(calendaritem.Date.Year, calendaritem.Date.Month, calendaritem.Date.Day);
+                    if (dateTimeStart.DayOfWeek != DayOfWeek.Sunday && dateTimeStart.DayOfWeek != DayOfWeek.Saturday)
+                    {
+                        Appointment appointment = new Appointment();
+                        appointment.StartTime = dateTimeStart;
+
+                        CalcMonthProfit(dateTimeStart, calendaritem.Pnl);
+                        appointment.EndTime = appointment.StartTime.AddDays(1);
+
+
+                        if (calendaritem.Pnl > 0)
+                            appointment.CategoryColor = Appointment.CategoryGreen;
+                        else
+                            appointment.CategoryColor = Appointment.CategoryRed;
+
+                        appointment.Locked = true;
+                        appointment.Subject = Math.Round(calendaritem.Pnl, 2).ToString(Nfi);
+                        appointment.TimeMarkedAs = Appointment.TimerMarkerDefault;
+                        ResultModel item = new ResultModel();
+                        item.Date = appointment.StartTime;
+                        item.Pnl = Math.Round(calendaritem.Pnl, 2);
+
+                        _calendarResult.Add(item);
+
+                        uiCalendar_calendarViewResultView.CalendarModel.Appointments.Add(appointment);
+
+
+                        MethodInvoker action = delegate
+                                                   {
+                                                       uiCalendar_calendarViewResultView.CalendarModel.Appointments.Add(
+                                                           appointment);
+                                                   };
+                        uiCalendar_calendarViewResultView.Invoke(action);
+
+
+
+
+                    }
+                }
+                int month = uiCalendar_calendarViewResultView.MonthViewStartDate.Month;
+                ToastNotification.Show(this, "Calendar loaded.");
+                Invoke((Action) delegate
+                                    {
+
+                                        // SetCalendarSymbol();
+                                        LoadCalendarWeeksValue(month);
+                                    });
+
+            }
+
+
+        }
+
+        private void uiCalendarLoad_Click(object sender, EventArgs e)
+        {
+
+            int symbolID = 0;
+            int dsetID = 0;
+
+            uiCalendar_calendarViewResultView.CalendarModel.Appointments.Clear();
+            uiCalendar_calendarViewResultView.Refresh();
+            uiCalendar_labelXWeek1.Text = "";
+            uiCalendar_labelXWeek2.Text = "";
+            uiCalendar_labelXWeek3.Text = "";
+            uiCalendar_labelXWeek4.Text = "";
+            uiCalendar_labelXWeek5.Text = "";
+            uiCalendar_labelXMonthTotal.Text = "";
+            uiCalendar_labelXMonth.Text = "";
+
+
+
+            if (_symbolList == null)
+                _symbolList = DataManager.GetContracts();
+
+            _calendarResult.Clear();
+            _weeklist.Clear();
+
+            foreach (var item in _symbolList)
+            {
+                if (uiCalendar_comboBoxXSymbol.Text == item.ContractName)
+                    symbolID = item.CountractId;
+            }
+
+
+            _datasetList = DataManager.GetDatasets();
+
+            foreach (var item in _datasetList)
+            {
+                if (uiCalendar_comboBoxXDSet.Text == item.DataSetName)
+                    dsetID = item.Id;
+            }
+            LoadCalendarItems(symbolID, dsetID);
+        }
+
+        private void uiCalendarSave_Click(object sender, EventArgs e)
+        {
+            if (_calendarResult != null)
+                SaveCalendarItem();
+        }
+
+        private void buttonX1_Click(object sender, EventArgs e)
+        {
+            if (uiCalendar_calendarViewResultView.CalendarModel.Appointments.Count != 0)
+            {
+                if (!(_startCalendarTime.Month == uiCalendar_calendarViewResultView.MonthViewStartDate.Month))
+                {
+                    uiCalendar_calendarViewResultView.MonthViewEndDate =
+                        uiCalendar_calendarViewResultView.MonthViewEndDate.AddMonths(-1);
+                    uiCalendar_calendarViewResultView.MonthViewStartDate =
+                        uiCalendar_calendarViewResultView.MonthViewStartDate.AddMonths(-1);
+
+                    uiCalendar_labelXWeek1.Text = "";
+                    uiCalendar_labelXWeek2.Text = "";
+                    uiCalendar_labelXWeek3.Text = "";
+                    uiCalendar_labelXWeek4.Text = "";
+                    uiCalendar_labelXWeek5.Text = "";
+                    if (isLoaded)
+
+                        LoadCalendarWeeksValue(uiCalendar_calendarViewResultView.MonthViewStartDate.Month);
+                    else
+                        GetCalendarWeeksValue(uiCalendar_calendarViewResultView.MonthViewStartDate.Month);
+
+                    if (_startCalendarTime.Month != uiCalendar_calendarViewResultView.MonthViewStartDate.Month)
+                    {
+                        if (uiCalendar_labelXWeek1.Text == "") uiCalendar_labelXWeek1.Text = _previousWeekValue;
+
+                    }
+                    //    uiCalendar_labelXWeek1.Text = "";
+                    //else
+                    //{
+                        //
+                        //if (_previousWeekValue.IndexOf('-') > -1)
+                        //    uiCalendar_labelXWeek1.ForeColor = Color.Crimson;
+                        //else
+                        //    uiCalendar_labelXWeek1.ForeColor = Color.Green;
+                   // }
+                  
+
+                }
+            }
+
+        }
+
+        private void buttonX2_Click(object sender, EventArgs e)
+        {
+            if (uiCalendar_calendarViewResultView.CalendarModel.Appointments.Count != 0)
+            {
+
+                int cnt = uiCalendar_calendarViewResultView.CalendarModel.Appointments.Count - 1;
+
+                if (uiCalendar_calendarViewResultView.CalendarModel.Appointments.Count == 0) return;
+
+                if ((uiCalendar_calendarViewResultView.MonthViewEndDate.Month -
+                     uiCalendar_calendarViewResultView.CalendarModel.Appointments.ElementAt(cnt).StartTime.Month) <= 0)
+                {
+                   string str = uiCalendar_labelXWeek5.Text;
+
+                    _previousWeekValue = uiCalendar_labelXWeek1.Text;
+                    uiCalendar_calendarViewResultView.MonthViewStartDate =
+                        uiCalendar_calendarViewResultView.MonthViewStartDate.AddMonths(1);
+                    uiCalendar_calendarViewResultView.MonthViewEndDate =
+                        uiCalendar_calendarViewResultView.MonthViewEndDate.AddMonths(1);
+                    if (isLoaded)
+                    {
+                        LoadCalendarWeeksValue(uiCalendar_calendarViewResultView.MonthViewStartDate.Month);
+
+                    }
+                    else
+                        GetCalendarWeeksValue(uiCalendar_calendarViewResultView.MonthViewStartDate.Month);
+
+                    if (uiCalendar_labelXWeek1.Text == "")
+                    {
+                        uiCalendar_labelXWeek1.Text = str;
+                        if (str.IndexOf('-') > -1)
+                            uiCalendar_labelXWeek1.ForeColor = Color.Crimson;
+                        else
+                            uiCalendar_labelXWeek1.ForeColor = Color.Green;
+                    }
+                }
+            }
+
+
+        }
+
+        public static int GetWeekOfMonth(DateTime date)
+        {
+            DateTime beginningOfMonth = new DateTime(date.Year, date.Month, 1);
+
+            while (date.Date.AddDays(1).DayOfWeek != CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek)
+                date = date.AddDays(1);
+
+            return (int) Math.Truncate((double) date.Subtract(beginningOfMonth).TotalDays/7f) + 1;
+        }
+
+        private void uiCalendarDelete_Click(object sender, EventArgs e)
+        {
+            int symbolID = 0;
+            int dsetID = 0;
+            if (_calendarResult.Count != 0)
+            {
+                uiCalendar_calendarViewResultView.CalendarModel.Appointments.Clear();
+                uiCalendar_calendarViewResultView.Refresh();
+                uiCalendar_labelXWeek1.Text = "";
+                uiCalendar_labelXWeek2.Text = "";
+                uiCalendar_labelXWeek3.Text = "";
+                uiCalendar_labelXWeek4.Text = "";
+                uiCalendar_labelXWeek5.Text = "";
+                uiCalendar_labelXMonthTotal.Text = "";
+                uiCalendar_labelXMonth.Text = "";
+                uiCalendar_labelXWeek6.Text = "";
+
+
+
+                if (_symbolList == null)
+                    _symbolList = DataManager.GetContracts();
+
+                _calendarResult.Clear();
+                _weeklist.Clear();
+
+                foreach (var item in _symbolList)
+                {
+                    if (uiCalendar_comboBoxXSymbol.Text == item.ContractName)
+                        symbolID = item.CountractId;
+                }
+
+                if (_datasetList == null)
+                    _datasetList = DataManager.GetDatasets();
+
+                foreach (var item in _datasetList)
+                {
+                    if (uiCalendar_comboBoxXDSet.Text == item.DataSetName)
+                        dsetID = item.Id;
+                }
+                DataManager.DelResult(symbolID, dsetID);
+            }
+        }
+
+        private void SetCalendarWeeksCount(bool isFive)
+        {
+            if (isFive)
+            {
+                tableLayoutPanelCalendar.Hide();
+                tableLayoutPanelCalendar.RowStyles[7].Height = 0;
+                uiCalendar_panelExWhiteCell6.Visible = false;
+                tableLayoutPanelCalendar.Show();
+            }
+            else
+            {
+                tableLayoutPanelCalendar.Hide();
+                tableLayoutPanelCalendar.RowStyles[7].Height = (float) 16.67;
+                uiCalendar_panelExWhiteCell6.Visible = true;
+                tableLayoutPanelCalendar.Show();
+            }
+        }
+
+
+
+        #endregion
